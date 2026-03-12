@@ -1,15 +1,15 @@
 #' Creates a slope-based cost surface
-#' 
+#'
 #'  Creates a cost surface based on the difficulty of moving up and down slope. This function implements multiple isotropic and anisotropic cost functions that estimate the 'cost' of human movement when traversing a landscape
-#'  
+#'
 #' The supplied 'spatRaster' object can have a projected or geographic coordinate system
-#' 
+#'
 #' @details
-#' 
+#'
 #' The following cost functions have been implemented however users may also supply their own cost function (see Examples):
-#' 
+#'
 #' "tobler", "tobler offpath", "davey", 'rees', "irmischer-clarke male", "irmischer-clarke offpath male", "irmischer-clarke female", "irmischer-clarke offpath female", "modified tobler", 'garmy', 'kondo-saino', "wheeled transport", "herzog", "llobera-sluckin", "naismith", "minetti", "campbell","campbell 2019 1","campbell 2019 5" ,"campbell 2019 10","campbell 2019 15","campbell 2019 20","campbell 2019 25","campbell 2019 30","campbell 2019 35","campbell 2019 40","campbell 2019 45","campbell 2019 50","campbell 2019 55","campbell 2019 60","campbell 2019 65","campbell 2019 70","campbell 2019 75","campbell 2019 80","campbell 2019 85","campbell 2019 90","campbell 2019 95","campbell 2019 99", "sullivan 167","sullivan 5", "sullivan 833"
-#' 
+#'
 #' Multiple travel rate percentiles implemented for campbell 2019 and sullivan, e.g. "campbell 2019 50" is the 50th percentile
 #'
 #' @param x \code{SpatRaster} Digital Elevation Model (DEM)
@@ -25,13 +25,13 @@
 #' @param exaggeration \code{logical}. if TRUE, positive slope values (up-hill movement) multiplied by 1.99 and negative slope values (down-hill movement) multiplied by 2.31
 #'
 #' @return \code{conductanceMatrix} that numerically expresses the difficulty of moving across slope based on the provided cost function
-#' 
-#' @references 
-#' 
+#'
+#' @references
+#'
 #' Tobler, W. 1993. Three Presentations on Geographical Analysis and Modeling. Technical Report 93-1 (Santa Barbara, CA)
-#' 
+#'
 #' Davey, R.C., M. Hayes and J.M. Norman 1994. “Running Uphill: An Experimental Result and Its Applications,” The Journal of the Operational Research Society 45, 25
-#' 
+#'
 #' Rees, W.G. 2004. “Least-cost paths in mountainous terrain,” Computers & Geosciences 30, 203–09
 #'
 #' Irmischer, I.J. and K.C. Clarke 2018. “Measuring and modeling the speed of human navigation,” Cartography and Geographic Information Science 45, 177–86
@@ -41,149 +41,253 @@
 #' Garmy, P. et al. 2005. “Logiques spatiales et ‘systèmes de villes’ en Lodévois de l’Antiquité à la période moderne,” Temps et espaces de l’homme en société, analyses et modèles spatiaux en archéologie 335–46
 #'
 #' Kondo, Y. and Y. Seino 2010. “GPS-aided walking experiments and data-driven travel cost modeling on the historical road of Nakasendō-Kisoji (Central Highland Japan),” Making History Interactive (Proceedings of the 37th International Conference, Williamsburg, Virginia, United States of America) 158–65
-#' 
+#'
 #' Herzog, I. 2013. “The potential and limits of Optimal Path Analysis,” in Bevan, A. and M. Lake (edd.), Computational approaches to archaeological spaces (Publications of the Institute of Archaeology, University College London) 179–211
 #'
 #' Llobera, M. and T.J. Sluckin 2007. “Zigzagging: Theoretical insights on climbing strategies,” Journal of Theoretical Biology 249, 206–17
-#' 
+#'
 #' Naismith, W. 1892. “Excursions: Cruach Ardran, Stobinian, and Ben More,” Scottish Mountaineering club journal 2, 136
-#' 
+#'
 #' Minetti, A.E. et al. 2002. “Energy cost of walking and running at extreme uphill and downhill slopes,” Journal of Applied Physiology 93, 1039–46
-#' 
+#'
 #' Campbell, M.J., P.E. Dennison and B.W. Butler 2017. “A LiDAR-based analysis of the effects of slope, vegetation density, and ground surface roughness on travel rates for wildland firefighter escape route mapping,” Int. J. Wildland Fire 26, 884
-#' 
+#'
 #' Campbell, M.J. et al. 2019. “Using crowdsourced fitness tracker data to model the relationship between slope and travel rates,” Applied Geography 106, 93–107
-#' 
+#'
 #' Sullivan, P.R. et al. 2020. “Modeling Wildland Firefighter Travel Rates by Terrain Slope: Results from GPS-Tracking of Type 1 Crew Movement,” Fire 3, 52
-#' 
+#'
 #' @author Joseph Lewis
+#' @author Barney Harris
 #'
 #' @export
-#' 
-#' @examples 
-#' 
-#' r <- terra::rast(system.file("extdata/SICILY_1000m.tif", package="leastcostpath"))
-#' 
-#' slope_cs <- create_slope_cs(x = r, cost_function = "tobler", neighbours = 4)
+#'
+#' @examples
+#'
+# r <- terra::rast(system.file("extdata/SICILY_1000m.tif", package="leastcostpath"))
+#'
+#' slope_cs <- create_slope_cs(x = r, cost_function = "tobler", neighbours = 48)
 #' slope_cs <- create_slope_cs(x = r, cost_function = "campbell 2019 50", neighbours = 4)
-#' slope_cs2 <- create_slope_cs(x = r, 
+#' slope_cs2 <- create_slope_cs(x = r,
 #' cost_function = function(x) {(6 * exp(-3.5 * abs(x + 0.05))) / 3.6}, neighbours = 4)
-#' 
+#'
 
-create_slope_cs <- function(x, cost_function = "tobler", neighbours = 16, crit_slope = 12, max_slope = NULL, exaggeration = FALSE) {
-    
-  neighbours <- neighbourhood(neighbours = neighbours)
-    
-  cells <- which(!is.na(terra::values(x)))
-  na_cells <- which(is.na(terra::values(x)))
-    
-  adj <- terra::adjacent(x = x, cells = cells, directions = neighbours, pairs = TRUE)
-  adj <- adj[!adj[,2] %in% na_cells,]
-    
-  elev_values <- terra::values(x)[,1]
-    
-  message("calculating slope...")
-    
-  rise <- (elev_values[adj[,2]] - elev_values[adj[,1]])
-  run <- calculate_distance(x = x, adj = adj)
-    
-  mathematical_slope <- rise/run
-    
-  if(exaggeration) { 
-      mathematical_slope <- ifelse(mathematical_slope > 0, mathematical_slope * 1.99, mathematical_slope * 2.31)
-  }
-    
-  ncells <- length(cells) + length(na_cells)
-    
-  cf <- cost(cost_function = cost_function, crit_slope = crit_slope)
-    
-  if(is.function(cost_function)) { 
-    message(c("Applying ", deparse(body(cost_function)[[2]]), " cost function"))
-  } else{ 
-    message(c("Applying ", cost_function, " cost function"))
-  }
-    
-  speed <- cf(mathematical_slope)
-    
-  conductance <- speed/run
-  
-  if(!is.function(cost_function)) {
-    if(cost_function %in% c("campbell","campbell 2019 1","campbell 2019 5" ,"campbell 2019 10","campbell 2019 15","campbell 2019 20","campbell 2019 25","campbell 2019 30","campbell 2019 35","campbell 2019 40","campbell 2019 45","campbell 2019 50","campbell 2019 55","campbell 2019 60","campbell 2019 65","campbell 2019 70","campbell 2019 75","campbell 2019 80","campbell 2019 85","campbell 2019 90","campbell 2019 95","campbell 2019 99")) { 
-      # convert 30 degrees slope to percentage slope
-      max_slope <- tan(30*pi/180)*100
+create_slope_cs <-
+  function(
+    x,
+    cost_function = "tobler",
+    neighbours = 16,
+    crit_slope = 12,
+    max_slope = NULL,
+    exaggeration = FALSE
+  ) {
+    `%!in%` <- function(x, y) !('%in%'(x, y))
+
+    if (neighbours == 4) {
+      neigh_dim <- 3
     }
+    if (neighbours == 8) {
+      neigh_dim <- 3
     }
-    
-  if(!is.null(max_slope)) {
+    if (neighbours == 16) {
+      neigh_dim <- 5
+    }
+    if (neighbours == 32) {
+      neigh_dim <- 7
+    }
+    if (neighbours == 48) {
+      neigh_dim <- 9
+    }
+
+    neighbours_obj <- neighbourhood(neighbours = neighbours)
+
+    cells <- which(!is.na(terra::values(x)))
+    na_cells <- which(is.na(terra::values(x)))
+
+    adj <- terra::adjacent(
+      x = x,
+      cells = cells,
+      directions = neighbours_obj,
+      pairs = TRUE
+    )
+    adj <- adj[!adj[, 2] %in% na_cells, ]
+
+    message('detecting and removing links crossing NaNs...')
+    # identify danger cells - those with 1 more more nan neighbours
+    freqNan <- function(x) sum(is.nan(x))
+    x.foc <- terra::focal(x, w = 3, freqNan, na.policy = 'omit')
+
+    # get danger cell numbers
+    dangerCells.all <- which(terra::values(x.foc) >= 1)
+
+    # remove danger cell from / to links from adj matrix
+    adj <- adj[adj[, 1] %!in% dangerCells.all, ]
+    adj <- adj[adj[, 2] %!in% dangerCells.all, ]
+
+    # limit these links to just 8 neighbours
+    adj.danger <-
+      terra::adjacent(
+        x = x,
+        cells = dangerCells.all,
+        directions = 'queen',
+        pairs = TRUE
+      )
+    adj.danger <- adj.danger[!adj.danger[, 2] %in% na_cells, ]
+    adj <- rbind(adj, adj.danger)
+
+    elev_values <- terra::values(x)[, 1]
+
+    message("calculating slope...")
+
+    rise <- (elev_values[adj[, 2]] - elev_values[adj[, 1]])
+    run <- calculate_distance(x = x, adj = adj)
+
+    mathematical_slope <- rise / run
+
+    if (exaggeration) {
+      mathematical_slope <- ifelse(
+        mathematical_slope > 0,
+        mathematical_slope * 1.99,
+        mathematical_slope * 2.31
+      )
+    }
+
+    ncells <- length(cells) + length(na_cells)
+
+    cf <- cost(cost_function = cost_function, crit_slope = crit_slope)
+
+    if (is.function(cost_function)) {
+      message(c(
+        "Applying ",
+        deparse(body(cost_function)[[2]]),
+        " cost function"
+      ))
+    } else {
+      message(c("Applying ", cost_function, " cost function"))
+    }
+
+    speed <- cf(mathematical_slope)
+
+    conductance <- speed / run
+
+    if (!is.function(cost_function)) {
+      if (
+        cost_function %in%
+          c(
+            "campbell",
+            "campbell 2019 1",
+            "campbell 2019 5",
+            "campbell 2019 10",
+            "campbell 2019 15",
+            "campbell 2019 20",
+            "campbell 2019 25",
+            "campbell 2019 30",
+            "campbell 2019 35",
+            "campbell 2019 40",
+            "campbell 2019 45",
+            "campbell 2019 50",
+            "campbell 2019 55",
+            "campbell 2019 60",
+            "campbell 2019 65",
+            "campbell 2019 70",
+            "campbell 2019 75",
+            "campbell 2019 80",
+            "campbell 2019 85",
+            "campbell 2019 90",
+            "campbell 2019 95",
+            "campbell 2019 99"
+          )
+      ) {
+        # convert 30 degrees slope to percentage slope
+        max_slope <- tan(30 * pi / 180) * 100
+      }
+    }
+
+    if (!is.null(max_slope)) {
       # convert percentage max slope to mathematical max slope
-      max_slope <- max_slope/100
+      max_slope <- max_slope / 100
       index <- abs(mathematical_slope) >= max_slope
       conductance[index] <- 0
+    }
+
+    cm_graph_df <- as.data.frame(cbind(adj, 1 / conductance))
+    node_coords <- cbind(cells, terra::xyFromCell(x, cells))
+
+    # create reference tables
+    message('Generating possible move reference tables...')
+    ref_moves <- get_reference_moves(cs_dem = x, neighbours = neighbours)
+
+    message('Making graph...')
+    cm_graph <- cppRouting::makegraph(cm_graph_df, coords = node_coords)
+    all_nodes <- unique(c(cm_graph_df$from, cm_graph_df$to))
+
+    cs <-
+      list(
+        "cs_dem" = terra::wrap(x),
+        "cppRoutingGraph" = cm_graph,
+        "relativeMoves" = ref_moves,
+        "neighDim" = neigh_dim,
+        "graphUniqueNodes" = all_nodes,
+        "costFunction" = cost_function,
+        "maxSlope" = ifelse(
+          !is.null(max_slope),
+          paste0(max_slope * 100, "%"),
+          NA
+        ),
+        "exaggeration" = exaggeration,
+        "criticalSlope" = ifelse(
+          test = !is.function(cost_function),
+          yes = ifelse(
+            test = cost_function == "wheeled transport",
+            yes = paste0(max_slope, "%"),
+            no = NA
+          ),
+          no = NA
+        ),
+        "neighbours" = sum(neighbours, na.rm = TRUE),
+        "crs" = terra::crs(x, proj = TRUE)
+      )
+
+    class(cs) <- "conductanceMatrix"
+
+    return(cs)
   }
-    
-  cs_matrix <- Matrix::Matrix(data = 0, nrow = ncells, ncol = ncells, sparse = TRUE)
-  cs_matrix[adj] <- conductance
-    
-  cs <- list("conductanceMatrix" = cs_matrix, 
-             "costFunction" = cost_function,
-             "maxSlope" = ifelse(!is.null(max_slope), paste0(max_slope*100, "%"), NA), 
-             "exaggeration" = exaggeration,
-             "criticalSlope" = ifelse(test = !is.function(cost_function), yes = ifelse(test = cost_function == "wheeled transport", yes = paste0(max_slope, "%"), no = NA), no = NA),
-             "neighbours" = sum(neighbours, na.rm = TRUE),
-             "resolution" = terra::res(x), 
-             "nrow" = terra::nrow(x), 
-             "ncol" = terra::ncol(x), 
-             "extent" = as.vector(terra::ext(x)), 
-             "crs" = terra::crs(x, proj = TRUE))
-    
-  class(cs) <- "conductanceMatrix"
-    
-  return(cs)
-    
-}
 
 #' @noRd
 #' @export
 
 print.conductanceMatrix <- function(x, ...) {
-    cat("Class: ", class(x))
-    if(!is.function(x$costFunction)) { cat("\ncost function: ", x$costFunction)}
-    if(is.function(x$costFunction)) { cat("\ncost function: ", deparse(body(x$costFunction)[[2]]))}
-    cat("\nneighbours:", x$neighbours)
-    cat("\nresolution:", x$resolution, "(x, y)")
-    cat("\nmax slope:", x$maxSlope)
-    cat("\nexaggeration:", x$exaggeration)
-    cat("\ncritical slope:", x$criticalSlope)
-    cat("\nSpatRaster dimenions: ", x$nrow, x$ncol, prod(x$nrow, x$ncol),  "(nrow, ncol, ncell)")
-    cat("\nMatrix dimensions: ", x$conductanceMatrix@Dim,  "(nrow, ncol)")
-    cat("\ncrs:", x$crs)
-    cat("\nextent:", x$extent, "(xmin, xmax, ymin, ymax)")
+  cat("Class: ", class(x))
+  if (!is.function(x$costFunction)) {
+    cat("\ncost function: ", x$costFunction)
+  }
+  if (is.function(x$costFunction)) {
+    cat("\ncost function: ", deparse(body(x$costFunction)[[2]]))
+  }
+  cat("\nneighbours:", x$neighbours)
+  cat("\nNumber of unique nodes:  ", length(x$graphUniqueNodes))
+  cat("\nresolution:", x$resolution, "(x, y)")
+  cat("\nmax slope:", x$maxSlope)
+  cat("\nexaggeration:", x$exaggeration)
+  cat("\ncritical slope:", x$criticalSlope)
+  cat(
+    "\nSpatRaster dimenions: ",
+    x$nrow,
+    x$ncol,
+    prod(x$nrow, x$ncol),
+    "(nrow, ncol, ncell)"
+  )
+  cat("\ncrs:", x$crs)
+  cat("\nextent:", x$extent, "(xmin, xmax, ymin, ymax)")
 }
 
-#' plot conductanceMatrix
-#' 
-#' plot conductanceMatrix for visualisation. Conductivity values are the mean conductivity for each cell
-#' 
-#' @param x \code{conductanceMatrix} 
+#' plot conductanceMatrixWithGraph
+#'
+#' plot conductanceMatrixWithGraph for visualisation. Conductivity values are the mean conductivity for each cell
+#'
+#' @param x \code{conductanceMatrixWithGraph}
 #' @param ... arguments passed to \code{terra::plot}
 #' @export
 
 plot.conductanceMatrix <- function(x, ...) {
-    
-  cs_rast <- terra::rast(nrow = x$nrow, ncol = x$ncol, xmin = x$extent[1], xmax = x$extent[2], ymin = x$extent[3], ymax = x$extent[4],crs = x$crs)
-    
-    col_sum <- Matrix::colSums(x$conductanceMatrix)
-    row_sum <- Matrix::rowSums(x$conductanceMatrix)
-    
-    logical_sm <- methods::as(x$conductance, "lMatrix")
-    
-    ncols <- Matrix::colSums(logical_sm)
-    nrows <- Matrix::rowSums(logical_sm)
-    
-    vals <- ((col_sum / ncols) + (row_sum / nrows)) / 2
-    
-    cs_rast <- terra::setValues(cs_rast, vals)
-    
-    terra::plot(cs_rast, ...)
-    
+  terra::plot(x$dem, ...)
 }
