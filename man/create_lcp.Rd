@@ -5,29 +5,44 @@
 \title{Calculate Least-cost Path from Origin to Destinations}
 \usage{
 create_lcp(
-  x,
+  cs,
   origin,
-  destination,
+  destination = NULL,
+  permute = TRUE,
+  paths_vect = TRUE,
+  paths_vect_filename = NULL,
+  density_rast = TRUE,
+  density_rast_filename = NULL,
   cost_distance = FALSE,
-  check_locations = FALSE
+  plot_paths = TRUE
 )
 }
 \arguments{
-\item{x}{\code{conductanceMatrix}}
+\item{cs}{\code{costSurface}}
 
-\item{origin}{\code{sf} 'POINT' or 'MULTIPOINT', \code{SpatVector}, \code{data.frame} or \code{matrix} containing the origin coordinates. Only the first row of the supplied object is used as the origin.}
+\item{origin}{\code{sf} 'POINT' or 'MULTIPOINT', \code{SpatVector}, \code{data.frame} or \code{matrix} containing the origin coordinate(s).}
 
-\item{destination}{\code{sf} 'POINT' or 'MULTIPOINT', \code{SpatVector}, \code{data.frame} or \code{matrix} containing the destination coordinates. If the object contains multiple coordinates then least-cost paths will be calculated from the origin to all destinations}
+\item{destination}{\code{sf} 'POINT' or 'MULTIPOINT', \code{SpatVector}, \code{data.frame}, \code{matrix} or \code{NULL}, containing the destination coordinates. If the object contains multiple coordinates then least-cost paths will be calculated from the origin to all destinations. If NULL then FETE paths will be calculated for all origin points.}
+
+\item{permute}{\code{logical} if TRUE least-cost paths are calculated from all origin locations to all destination locations. If FALSE, then a single least-cost path is calculated for each origin and location pair. Can only be FALSE if \code{origin} and \code{destination} have the same number of rows. TRUE (default)}
+
+\item{paths_vect}{\code{logical} if TRUE least-cost paths are converted into line geometries and returned, unless \code{paths_vect_filename} not NULL. TRUE (default)}
+
+\item{paths_vect_filename}{\code{character} File path to write least-cost paths line geometries to. No line geometries will be returned. NULL (default)}
+
+\item{density_rast}{\code{logical} if TRUE a raster counting the number times a least-cost path touches a cell is produced and returned, unless \code{density_rast_filename} not NULL. FALSE (default)}
+
+\item{density_rast_filename}{\code{character} File path to write density raster to. No density raster will be returned. NULL (default)}
 
 \item{cost_distance}{\code{logical} if TRUE computes total accumulated cost from origin to the destinations. FALSE (default)}
 
-\item{check_locations}{\code{logical} if TRUE checks if origin and destination are traversable by the least-cost path. FALSE (default)}
+\item{plot_paths}{\code{logical} if TRUE least-cost paths and origins / destinations are plotted after calculations. Can take a long time with many paths. FALSE (default)}
 }
 \value{
-\code{sf}  Least-cost path from origin and destinations based on the supplied \code{conductanceMatrix}
+\code{lcpObject} Least-cost path list object containing least-cost path line geometries, least-cost path density raster and or least-cost path distances, based on the supplied \code{costSurface}.
 }
 \description{
-Calculates the Least-cost path from an origin location to one or more destination locations. Applies Dijkstra's algorithm as implemented in the igraph R package.
+Calculates the Least-cost path from origin location(s) to destination location(s). Applies Dijkstra's algorithm as implemented in the igraph / cppRouting R package.
 }
 \examples{
 
@@ -38,12 +53,13 @@ slope_cs <- create_slope_cs(x = r, cost_function = "tobler", neighbours = 4)
 locs <- sf::st_sf(geometry = sf::st_sfc(
 sf::st_point(c(839769, 4199443)),
 sf::st_point(c(1038608, 4100024)),
-sf::st_point(c(1017819, 4206255)),
-sf::st_point(c(1017819, 4206255)),
+sf::st_point(c(907695, 4145478)),
 crs = terra::crs(r)))
 
-lcps <- create_lcp(x = slope_cs, origin = locs[1,], destination = locs)
+lcp <- create_lcp(cs = slope_cs, origin = locs, destination = locs, permute = TRUE, plot_paths = FALSE)
+lcp <- create_lcp(cs = slope_cs, origin = locs, destination = NULL, permute = TRUE, plot_paths = FALSE)
+lcp <- create_lcp(cs = slope_cs, origin = locs, destination = rev(locs), permute = FALSE, plot_paths = FALSE)
 }
 \author{
-Joseph Lewis
+Joseph Lewis & Barney Harris
 }

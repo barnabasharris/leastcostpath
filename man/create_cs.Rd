@@ -33,9 +33,8 @@ The supplied 'spatRaster' object must have a projected CRS
 }
 \examples{
 
-r <- terra::rast(system.file("extdata/SICILY_1000m.tif", package="leastcostpath"))
 
-cs1 <- create_cs(x = r, neighbours = 16, dem = NULL, max_slope = NULL)
+cs1 <- create_cs(x = r, neighbours = 48, dem = NULL, max_slope = NULL)
 cs2 <- create_cs(x = r, neighbours = 16, dem = r, max_slope = 10)
 }
 \author{

@@ -2,15 +2,15 @@
 % Please edit documentation in R/create_slope_cs.R
 \name{plot.conductanceMatrix}
 \alias{plot.conductanceMatrix}
-\title{plot conductanceMatrix}
+\title{plot conductanceMatrixWithGraph}
 \usage{
 \method{plot}{conductanceMatrix}(x, ...)
 }
 \arguments{
-\item{x}{\code{conductanceMatrix}}
+\item{x}{\code{conductanceMatrixWithGraph}}
 
 \item{...}{arguments passed to \code{terra::plot}}
 }
 \description{
-plot conductanceMatrix for visualisation. Conductivity values are the mean conductivity for each cell
+plot conductanceMatrixWithGraph for visualisation. Conductivity values are the mean conductivity for each cell
 }

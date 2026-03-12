@@ -31,10 +31,12 @@ create_slope_cs(
 }
 \description{
 Creates a cost surface based on the difficulty of moving up and down slope. This function implements multiple isotropic and anisotropic cost functions that estimate the 'cost' of human movement when traversing a landscape
- 
-The supplied 'spatRaster' object can have a projected or geographic coordinate system
 }
 \details{
+The supplied 'spatRaster' object can have a projected or geographic coordinate system
+
+
+
 The following cost functions have been implemented however users may also supply their own cost function (see Examples):
 
 "tobler", "tobler offpath", "davey", 'rees', "irmischer-clarke male", "irmischer-clarke offpath male", "irmischer-clarke female", "irmischer-clarke offpath female", "modified tobler", 'garmy', 'kondo-saino', "wheeled transport", "herzog", "llobera-sluckin", "naismith", "minetti", "campbell","campbell 2019 1","campbell 2019 5" ,"campbell 2019 10","campbell 2019 15","campbell 2019 20","campbell 2019 25","campbell 2019 30","campbell 2019 35","campbell 2019 40","campbell 2019 45","campbell 2019 50","campbell 2019 55","campbell 2019 60","campbell 2019 65","campbell 2019 70","campbell 2019 75","campbell 2019 80","campbell 2019 85","campbell 2019 90","campbell 2019 95","campbell 2019 99", "sullivan 167","sullivan 5", "sullivan 833"
@@ -43,11 +45,10 @@ Multiple travel rate percentiles implemented for campbell 2019 and sullivan, e.g
 }
 \examples{
 
-r <- terra::rast(system.file("extdata/SICILY_1000m.tif", package="leastcostpath"))
 
-slope_cs <- create_slope_cs(x = r, cost_function = "tobler", neighbours = 4)
+slope_cs <- create_slope_cs(x = r, cost_function = "tobler", neighbours = 48)
 slope_cs <- create_slope_cs(x = r, cost_function = "campbell 2019 50", neighbours = 4)
-slope_cs2 <- create_slope_cs(x = r, 
+slope_cs2 <- create_slope_cs(x = r,
 cost_function = function(x) {(6 * exp(-3.5 * abs(x + 0.05))) / 3.6}, neighbours = 4)
 
 }
@@ -82,4 +83,6 @@ Sullivan, P.R. et al. 2020. “Modeling Wildland Firefighter Travel Rates by Ter
 }
 \author{
 Joseph Lewis
+
+Barney Harris
 }
