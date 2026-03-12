@@ -56,6 +56,7 @@ Authors
 -------
 
 -   Joseph Lewis - *author / creator* - [Website](https://josephlewis.github.io)
+-   Barney Harris - *contributor* - [Website](https://barney.fly.dev)
 
 Citation
 --------
